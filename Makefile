@@ -1,5 +1,5 @@
 ARDUINO_DIR       = $(realpath $(HOME)/arduino/arduino-current)
-#ARDUINO_LIBS      := SPI Wire
+ARDUINO_LIBS      := Wire Adafruit_MCP9808
 
 ARDUINO_PORT      := /dev/ttyUSB0
 USER_LIB_PATH     := $(realpath ./lib)
