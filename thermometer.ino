@@ -8,6 +8,11 @@
  *
  */
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <stdint.h>
+
 #include <Arduino.h>
 #include <Adafruit_MCP9808.h>
 #include <SevSeg.h>
@@ -15,12 +20,14 @@
 
 // Temperature sensor
 Adafruit_MCP9808 therm = Adafruit_MCP9808();
+uint32_t last_check = 0;
+float curr_temp = 0.0;
 
 // Display
 SevSeg display;
 
 const size_t DISP_DIGITS = 3;
-const byte DISP_BRIGHT = 0; // 0-100 for some reason
+const byte DISP_BRIGHT = 1; // 0-100 for some reason
 
 const byte PINS_DIGITS[DISP_DIGITS] = {
   2, // digit 1 (leftmost)
@@ -66,6 +73,19 @@ float readTemp() {
   return temp;
 }
 
+uint32_t time_diff(uint32_t a, uint32_t b) {
+  uint32_t retval = 0;
+
+  // Handle wrap-around condition for clock roll-over
+  if (a < b) {
+    retval = b - a;
+  } else {
+    retval = (UINT32_MAX - a) + b;
+  }
+
+  return retval;
+}
+
 ////////////////////////////////////////////////////////////////////////
 // SETUP
 ////////////////////////////////////////////////////////////////////////
@@ -96,11 +116,16 @@ void setup() {
 
 void loop() {
   
-  float temp = readTemp();
-  char dig1, dig2, dig3;
-  uint8_t dp = 0;
+  // Check if temperature needs updating
+  uint32_t now = millis();
+  if (time_diff(last_check, now) > THERM_POLL_INTERVAL) {
+    last_check = now;
+    curr_temp = readTemp();
+  }
 
   /*
+  char dig1, dig2, dig3;
+  uint8_t dp = 0;
   if (temp <= -10 && temp > -100) {
     dig1 = '-';
     dig2 = INT2CHAR(int(temp) / 10);
@@ -131,10 +156,11 @@ void loop() {
   }
   */
 
-  DPRINT(dig1);
-  DPRINT(dig2);
-  DPRINTLN(dig3);
+  //DPRINT(dig1);
+  //DPRINT(dig2);
+  //DPRINTLN(dig3);
 
-  delay(1000);
+  display.refreshDisplay();
+  delayMicroseconds(1000);
 
 }
