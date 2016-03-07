@@ -8,65 +8,36 @@
  *
  */
 
-//#include <stdlib.h>
-//#include <stdio.h>
-//#include <string.h>
-//#include <math.h>
-//#include <avr/io.h>
-//#include <avr/pgmspace.h>
-
 #include <Arduino.h>
 #include <Adafruit_MCP9808.h>
+#include <SevSeg.h>
+#include "thermometer.h"
 
 // Temperature sensor
 Adafruit_MCP9808 therm = Adafruit_MCP9808();
 
-// What unit to use for display?
-#define UNIT_C 0
-#define UNIT_F 1
-#define UNIT_K 2
-#define USE_UNIT UNIT_F
+// Display
+SevSeg display;
 
-// Only really used for serial connection
-#if   USE_UNIT == UNIT_C
-#define UNIT_SYMBOL F("C")
-#elif USE_UNIT == UNIT_F
-#define UNIT_SYMBOL F("F")
-#elif USE_UNIT == UNIT_K
-#define UNIT_SYMBOL F("K")
-#else
-#error "USE_UNIT not defined properly!"
-#endif
+const size_t DISP_DIGITS = 3;
+const byte DISP_BRIGHT = 0; // 0-100 for some reason
 
-#define INT2CHAR(x) ((char)((x) + 0x30))
+const byte PINS_DIGITS[DISP_DIGITS] = {
+  2, // digit 1 (leftmost)
+  5, // digit 2
+  6, // digit 3 (rightmost)
+};
 
-// Seven segment pin mappings
-#define PIN_SEG_A 3
-#define PIN_SEG_B 7
-#define PIN_SEG_C A0
-#define PIN_SEG_D A2
-#define PIN_SEG_E A3
-#define PIN_SEG_F 4
-#define PIN_SEG_G 13
-#define PIN_SEG_P A1
-#define PIN_DIG_1 2
-#define PIN_DIG_2 5
-#define PIN_DIG_3 6
-
-////////////////////////////////////////////////////////////////////////
-// DEBUGGING
-////////////////////////////////////////////////////////////////////////
-
-#define SERIAL_DEBUG 1
-#define SERIAL_BAUD 9600
-
-#ifdef SERIAL_DEBUG
-#define DPRINT(...) Serial.print(__VA_ARGS__)
-#define DPRINTLN(...) Serial.println(__VA_ARGS__)
-#else
-#define DPRINT(...)
-#define DPRINTLN(...)
-#endif
+const byte PINS_SEGMENTS[] = {
+  3,  // segment a
+  7,  // segment b
+  A0, // segment c
+  A2, // segment d
+  A3, // segment e
+  4,  // segment f
+  13, // segment g
+  A1, // decimal point
+};
 
 ////////////////////////////////////////////////////////////////////////
 // HALPING
@@ -107,6 +78,9 @@ void setup() {
 #endif
 
   // Initialize display
+  display.begin(COMMON_CATHODE, DISP_DIGITS, PINS_DIGITS, PINS_SEGMENTS);
+  display.setBrightness(DISP_BRIGHT);
+  display.setNumber(123, 3);
 
   // Find and prep temp sensor
   if (!therm.begin()) {
@@ -126,6 +100,7 @@ void loop() {
   char dig1, dig2, dig3;
   uint8_t dp = 0;
 
+  /*
   if (temp <= -10 && temp > -100) {
     dig1 = '-';
     dig2 = INT2CHAR(int(temp) / 10);
@@ -154,6 +129,7 @@ void loop() {
   } else {
     dig1 = dig2 = dig3 = 'E';
   }
+  */
 
   DPRINT(dig1);
   DPRINT(dig2);
