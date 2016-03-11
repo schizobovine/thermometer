@@ -5,8 +5,9 @@ ARDUINO_PORT      := /dev/ttyUSB0
 USER_LIB_PATH     := $(realpath ./lib)
 
 ARCHITECTURE      = avr
-#ALTERNATE_CORE    = adafruit
-BOARD_TAG         = uno
+#BOARD_TAG         = uno
+BOARD_TAG         = pro
+BOARD_SUB         = 16MHzatmega328
 
 #CXXFLAGS      += -std=gnu++11 -Wl,-u,vfprintf
 #CFLAGS        += -std=gnu11 -Wl,-u,vfprintf
