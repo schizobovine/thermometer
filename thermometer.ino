@@ -21,13 +21,20 @@
 // Temperature sensor
 Adafruit_MCP9808 therm = Adafruit_MCP9808();
 uint32_t last_check = 0;
-float curr_temp = 0.0;
+float avg_temp = 0.0;
+float last_temp = 0.0;
+boolean sensor_error = false;
+const size_t HISTORY_LENGTH = 8;
+float temp_history[HISTORY_LENGTH];
+size_t temp_history_pos = 0;
+size_t temp_history_max = 0;
 
 // Display
 SevSeg display;
 
 const size_t DISP_DIGITS = 3;
-const byte DISP_BRIGHT = 1; // 0-100 for some reason
+const int DISP_ON_TIME_USEC = 100;
+const int DISP_OFF_TIME_USEC = 1000;
 
 const byte PINS_DIGITS[DISP_DIGITS] = {
   2, // digit 1 (leftmost)
@@ -50,20 +57,43 @@ const byte PINS_SEGMENTS[] = {
 // HALPING
 ////////////////////////////////////////////////////////////////////////
 
+void recordTemp(float temp) {
+  temp_history[temp_history_pos] = temp;
+  temp_history_pos = (temp_history_pos + 1) % HISTORY_LENGTH;
+  if (temp_history_max < HISTORY_LENGTH) {
+    temp_history_max++;
+  }
+}
+
+float readRollingAvgTemp() {
+  float total = 0.0;
+  for (size_t i; i<temp_history_max; i++) {
+    total += temp_history[i];
+  }
+  return total / temp_history_max;
+}
+
 float readTemp() {
   float temp;
   
+  // Return error condition on sensor failure
+  if (sensor_error) {
+    return 999;
+  }
+
   //thermo.shutdown_wake(0);
   temp = therm.readTempC();
   //thermo.shutdown_wake(1);
 
   // Peform temp conversion but only compile in code as required
-#if   USE_UNIT == USE_C
+#if   USE_UNIT == UNIT_C
   // Do nothing because the default is C
-#elif USE_UNIT == USE_F
+#elif USE_UNIT == UNIT_F
   temp = temp * 9.0 / 5.0 + 32;
-#elif USE_UNIT == USE_K
+#elif USE_UNIT == UNIT_K
   temp = temp + 273.15;
+#else
+#error "UNIT NOT DEFINED!"
 #endif
 
   DPRINT(temp, 2);
@@ -97,14 +127,13 @@ void setup() {
   Serial.begin(SERIAL_BAUD);
 #endif
 
-  // Initialize display
+  // Setup display
   display.begin(COMMON_CATHODE, DISP_DIGITS, PINS_DIGITS, PINS_SEGMENTS);
-  display.setBrightness(DISP_BRIGHT);
-  display.setNumber(123, 3);
 
   // Find and prep temp sensor
   if (!therm.begin()) {
     DPRINTLN(F("Couldn't find sensor!"));
+    sensor_error = true;
     // TODO set display to fail mode
   }
 
@@ -120,47 +149,53 @@ void loop() {
   uint32_t now = millis();
   if (time_diff(last_check, now) > THERM_POLL_INTERVAL) {
     last_check = now;
-    curr_temp = readTemp();
+    last_temp = readTemp();
+    recordTemp(last_temp);
+    avg_temp = readRollingAvgTemp();
   }
 
-  /*
-  char dig1, dig2, dig3;
-  uint8_t dp = 0;
-  if (temp <= -10 && temp > -100) {
-    dig1 = '-';
-    dig2 = INT2CHAR(int(temp) / 10);
-    dig3 = INT2CHAR(int(temp) % 10);
+  //char dig1, dig2, dig3;
+  int8_t dp = 0; // # after . to show
+  if (avg_temp <= -10 && avg_temp > -100) {
+    // dig1 = '-';
+    // dig2 = INT2CHAR(int(avg_temp) / 10);
+    // dig3 = INT2CHAR(int(avg_temp) % 10);
+    dp = -1;
+  } else if (avg_temp < 0 && avg_temp > -10) {
+    // dig1 = '-';
+    // dig2 = INT2CHAR(int(avg_temp) % 10);
+    // dig3 = INT2CHAR(int(avg_temp * 10) % 10);
     dp = 0;
-  } else if (temp < 0 && temp > -10) {
-    dig1 = '-';
-    dig2 = INT2CHAR(int(temp) % 10);
-    dig3 = INT2CHAR(int(temp * 10) % 10);
-    dp = 2;
-  } else if (temp >= 0 && temp < 10) {
-    dig1 = INT2CHAR(int(temp) % 10);
-    dig2 = INT2CHAR(int(temp * 10) % 10);
-    dig2 = INT2CHAR(int(temp * 100) % 10);
+  } else if (avg_temp >= 0 && avg_temp < 10) {
+    // dig1 = INT2CHAR(int(avg_temp) % 10);
+    // dig2 = INT2CHAR(int(avg_temp * 10) % 10);
+    // dig2 = INT2CHAR(int(avg_temp * 100) % 10);
+    dp = 0;
+  } else if (avg_temp >= 10 && avg_temp < 100) {
+    // dig1 = INT2CHAR(int(avg_temp) / 10);
+    // dig2 = INT2CHAR(int(avg_temp) % 10);
+    // dig3 = INT2CHAR(int(avg_temp * 10) % 10);
     dp = 1;
-  } else if (temp >= 10 && temp < 100) {
-    dig1 = INT2CHAR(int(temp) / 10);
-    dig2 = INT2CHAR(int(temp) % 10);
-    dig3 = INT2CHAR(int(temp * 10) % 10);
-    dp = 2;
-  } else if (temp >= 100 && temp < 1000) {
-    dig1 = INT2CHAR(int(temp) / 100);
-    dig2 = INT2CHAR(int(temp) / 10);
-    dig3 = INT2CHAR(int(temp) % 10);
+  } else if (avg_temp >= 100 && avg_temp < 1000) {
+    // dig1 = INT2CHAR(int(avg_temp) / 100);
+    // dig2 = INT2CHAR(int(avg_temp) / 10);
+    // dig3 = INT2CHAR(int(avg_temp) % 10);
     dp = 0;
-  } else {
-    dig1 = dig2 = dig3 = 'E';
+  } else { // error state
+    // dig1 = // dig2 = // dig3 = 'E';
+    dp = -1;
   }
-  */
 
   //DPRINT(dig1);
   //DPRINT(dig2);
   //DPRINTLN(dig3);
+  if (dp > 0) {
+    display.setNumber(avg_temp, dp);
+  } else {
+    display.setNumber(999, 0);
+  }
 
-  display.refreshDisplay();
-  delayMicroseconds(1000);
+  display.refreshDisplay(DISP_ON_TIME_USEC);
+  delayMicroseconds(DISP_OFF_TIME_USEC);
 
 }

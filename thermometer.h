@@ -33,7 +33,7 @@
 #endif
 
 // How often to poll for temperature, in milliseconds?
-#define THERM_POLL_INTERVAL 500
+#define THERM_POLL_INTERVAL 1000
 
 #define INT2CHAR(x) ((char)((x) + 0x30))
 
