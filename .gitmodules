@@ -4,3 +4,6 @@
 [submodule "lib/SevSeg"]
 	path = lib/SevSeg
 	url = git@github.com:schizobovine/SevSeg.git
+[submodule "lib/Adafruit_MCP9808"]
+	path = lib/Adafruit_MCP9808
+	url = git@github.com:schizobovine/Adafruit_MCP9808_Library.git
