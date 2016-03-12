@@ -22,10 +22,11 @@
 Adafruit_MCP9808 therm = Adafruit_MCP9808();
 uint32_t last_check = 0;
 float avg_temp = 0.0;
-float last_temp = 0.0;
+int16_t last_temp = 0;
 boolean sensor_error = false;
-const size_t HISTORY_LENGTH = 8;
-float temp_history[HISTORY_LENGTH];
+
+const size_t HISTORY_LENGTH = 4;
+int16_t temp_history[HISTORY_LENGTH];
 size_t temp_history_pos = 0;
 size_t temp_history_max = 0;
 
@@ -57,33 +58,29 @@ const byte PINS_SEGMENTS[] = {
 // HALPING
 ////////////////////////////////////////////////////////////////////////
 
-void recordTemp(float temp) {
+void recordTemp(int16_t temp) {
+  //DPRINT(F("temp_history_pos1=")); DPRINTLN(temp_history_pos);
+  //DPRINT(F("temp_history_max1=")); DPRINTLN(temp_history_max);
   temp_history[temp_history_pos] = temp;
   temp_history_pos = (temp_history_pos + 1) % HISTORY_LENGTH;
   if (temp_history_max < HISTORY_LENGTH) {
     temp_history_max++;
   }
+  //DPRINT(F("temp_history_pos2=")); DPRINTLN(temp_history_pos);
+  //DPRINT(F("temp_history_max2=")); DPRINTLN(temp_history_max);
 }
 
 float readRollingAvgTemp() {
-  float total = 0.0;
-  for (size_t i; i<temp_history_max; i++) {
+
+  int16_t total = 0;
+  for (size_t i=0; i<temp_history_max; i++) {
     total += temp_history[i];
   }
-  return total / temp_history_max;
-}
+  total /= temp_history_max;
+  //DPRINT(F("total=")); DPRINTLN(total);
 
-float readTemp() {
-  float temp;
-  
-  // Return error condition on sensor failure
-  if (sensor_error) {
-    return 999;
-  }
-
-  //thermo.shutdown_wake(0);
-  temp = therm.readTempC();
-  //thermo.shutdown_wake(1);
+  float temp = total / THERM_DIVIDER;
+  //DPRINT(F("temp1=")); DPRINTLN(temp);
 
   // Peform temp conversion but only compile in code as required
 #if   USE_UNIT == UNIT_C
@@ -96,9 +93,23 @@ float readTemp() {
 #error "UNIT NOT DEFINED!"
 #endif
 
-  DPRINT(temp, 2);
-  DPRINT(F(" "));
-  DPRINTLN(UNIT_SYMBOL);
+  //DPRINT("temp="); DPRINTLN(temp);
+
+  return temp;
+
+}
+
+int16_t readTemp() {
+  int16_t temp;
+  
+  // Return error condition on sensor failure
+  if (sensor_error) {
+    return 999;
+  }
+
+  //therm.shutdown_wake(0);
+  temp = therm.readTempRaw();
+  //therm.shutdown_wake(1);
 
   return temp;
 }
@@ -150,8 +161,10 @@ void loop() {
   if (time_diff(last_check, now) > THERM_POLL_INTERVAL) {
     last_check = now;
     last_temp = readTemp();
+    //DPRINT(F("last_temp=")); DPRINT(last_temp);
     recordTemp(last_temp);
     avg_temp = readRollingAvgTemp();
+    DPRINT(F(" avg_temp=")); DPRINTLN(avg_temp);
   }
 
   //char dig1, dig2, dig3;
@@ -160,17 +173,17 @@ void loop() {
     // dig1 = '-';
     // dig2 = INT2CHAR(int(avg_temp) / 10);
     // dig3 = INT2CHAR(int(avg_temp) % 10);
-    dp = -1;
+    dp = 1;
   } else if (avg_temp < 0 && avg_temp > -10) {
     // dig1 = '-';
     // dig2 = INT2CHAR(int(avg_temp) % 10);
     // dig3 = INT2CHAR(int(avg_temp * 10) % 10);
-    dp = 0;
+    dp = 1;
   } else if (avg_temp >= 0 && avg_temp < 10) {
     // dig1 = INT2CHAR(int(avg_temp) % 10);
     // dig2 = INT2CHAR(int(avg_temp * 10) % 10);
     // dig2 = INT2CHAR(int(avg_temp * 100) % 10);
-    dp = 0;
+    dp = 1;
   } else if (avg_temp >= 10 && avg_temp < 100) {
     // dig1 = INT2CHAR(int(avg_temp) / 10);
     // dig2 = INT2CHAR(int(avg_temp) % 10);
@@ -190,7 +203,8 @@ void loop() {
   //DPRINT(dig2);
   //DPRINTLN(dig3);
   if (dp > 0) {
-    display.setNumber(avg_temp, dp);
+    //display.setNumber(avg_temp, dp);
+    display.setNumber(999, 0);
   } else {
     display.setNumber(999, 0);
   }

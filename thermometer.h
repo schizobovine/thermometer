@@ -32,6 +32,9 @@
 #error "USE_UNIT not defined properly!"
 #endif
 
+// Fixed precision divider
+#define THERM_DIVIDER 16.0
+
 // How often to poll for temperature, in milliseconds?
 #define THERM_POLL_INTERVAL 1000
 
