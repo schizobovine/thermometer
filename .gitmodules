@@ -7,3 +7,6 @@
 [submodule "lib/Adafruit_MCP9808"]
 	path = lib/Adafruit_MCP9808
 	url = git@github.com:schizobovine/Adafruit_MCP9808_Library.git
+[submodule "lib/Bounce2"]
+	path = lib/Bounce2
+	url = git@github.com:schizobovine/Bounce2.git
