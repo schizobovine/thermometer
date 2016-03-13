@@ -22,7 +22,9 @@
 Adafruit_MCP9808 therm = Adafruit_MCP9808();
 uint32_t last_check = 0;
 float last_temp = 0.0;
+int8_t display_temp = 0;
 boolean sensor_error = false;
+boolean metric_units = false;
 
 // Display
 SevSeg display;
@@ -57,7 +59,7 @@ float readTemp() {
   
   // Return error condition on sensor failure
   if (sensor_error) {
-    return 999;
+    return 9999;
   }
 
   float temp;
@@ -66,11 +68,13 @@ float readTemp() {
   temp = therm.readTempC();
   //therm.shutdown_wake(1);
 
+  DPRINT("tempC="); DPRINT(temp);
 
-  // Convert to Fahrenheit because I suck and can't read C well (yet)
-  temp = temp * 9.0 / 5.0 + 32;
+  // Convert to Fahrenheit because I suck and can't read Celcius well (yet)
+  if (!metric_units) {
+    temp = temp * 9.0 / 5.0 + 32;
+  }
 
-  DPRINT( "tempC="); DPRINT(temp);
   DPRINT(" tempF="); DPRINTLN(temp);
 
   return temp;
@@ -109,6 +113,8 @@ void setup() {
     DPRINTLN(F("Couldn't find sensor!"));
     sensor_error = true;
     // TODO set display to fail mode
+  } else {
+    last_temp = readTemp();
   }
 
 }
@@ -124,31 +130,52 @@ void loop() {
   if (time_diff(last_check, now) > THERM_POLL_INTERVAL) {
     last_check = now;
     last_temp = readTemp();
+    display_temp = int(round(last_temp));
   }
 
-  int8_t dp = 0; // # after . to show
-  if (last_temp <= -10 && last_temp > -100) {
-    dp = 1;
-  } else if (last_temp < 0 && last_temp > -10) {
-    dp = 1;
-  } else if (last_temp >= 0 && last_temp < 10) {
-    dp = 1;
-  } else if (last_temp >= 10 && last_temp < 100) {
-    dp = 1;
-  } else if (last_temp >= 100 && last_temp < 1000) {
-    dp = 0;
-  } else { // error state
-    dp = -1;
-  }
-
-  if (dp > 0) {
-    display.setNumber(last_temp, dp);
-    //display.setNumber(999, 0);
+  byte digits[4];
+  boolean whoops = false;
+  if (display_temp <= -10 && display_temp > -100) {
+    digits[0] = DASH;
+    digits[1] = (-display_temp / 10) % 10;
+    digits[2] = (-display_temp) % 10;
+  } else if (display_temp < 0 && display_temp > -10) {
+    digits[0] = BLANK;
+    digits[1] = DASH;
+    digits[2] = (-display_temp) % 10;
+  } else if (display_temp >= 0 && display_temp < 10) {
+    digits[0] = BLANK;
+    digits[1] = BLANK;
+    digits[2] = (display_temp) % 10;
+  } else if (display_temp >= 10 && display_temp < 100) {
+    digits[0] = BLANK;
+    digits[1] = (display_temp / 10) % 10;
+    digits[2] = (display_temp) % 10;
+  } else if (display_temp >= 100 && display_temp < 1000) {
+    digits[0] = (display_temp / 100) % 10;
+    digits[1] = (display_temp / 10) % 10;
+    digits[2] = (display_temp) % 10;
   } else {
-    display.setNumber(999, 0);
+    whoops = true;
+    digits[0] = 0xE;
+    digits[1] = 0xE;
+    digits[2] = 0xE;
   }
 
+  // either unit or error condition
+  if (whoops) {
+    digits[3] = 0xE;
+  } else if (metric_units) {
+    digits[3] = 0xC;
+  } else {
+    digits[3] = 0xF;
+  }
+
+  // Refresh display
+  display.setDigits(digits, sizeof(digits));
   display.refreshDisplay(DISP_ON_TIME_USEC);
+
+  // Busy loop so the display isn't burnt out
   delayMicroseconds(DISP_OFF_TIME_USEC);
 
 }
