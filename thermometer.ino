@@ -24,16 +24,18 @@
 Adafruit_MCP9808 therm = Adafruit_MCP9808();
 uint32_t last_check = 0;
 uint32_t THERM_POLL_MS = 1000; // milliseconds
-int curr_temp = 0;
-int last_temp = 0;
+int curr_temp_c = 0;
+int curr_temp_f = 0;
+int last_temp_c = 0;
 boolean sensor_error = false;
-boolean metric_units = false;
+boolean curr_metric_units = false;
+boolean last_metric_units = false;
 
 // Display variables/consts
 SevSeg display;
 
 const size_t DISP_DIGITS = 4;
-const size_t DISP_BRIGHT = 128;
+const size_t DISP_BRIGHT = 192;
 const byte PINS_DIGITS[DISP_DIGITS] = {
   2, // digit 1 (leftmost)
   5, // digit 2
@@ -61,29 +63,24 @@ const uint16_t BUTT_DEBOUNCE_MS = 50;
 // HALPING
 ////////////////////////////////////////////////////////////////////////
 
-int readTemp() {
+void readTemp() {
   
-  // Return error condition on sensor failure
   if (sensor_error) {
-    return 9999;
+    return;
   }
-
-  float temp;
 
   //therm.shutdown_wake(0);
-  temp = therm.readTempC();
+  curr_temp_c = therm.readTempC();
   //therm.shutdown_wake(1);
 
-  DPRINT("tempC="); DPRINT(temp);
+  DPRINT("tempC="); DPRINT(curr_temp_c);
 
   // Convert to Fahrenheit because I suck and can't read Celcius well (yet)
-  if (!metric_units) {
-    temp = temp * 9.0 / 5.0 + 32;
+  if (!curr_metric_units) {
+    curr_temp_f = curr_temp_c * 9.0 / 5.0 + 32;
   }
 
-  DPRINT(" tempF="); DPRINTLN(temp);
-
-  return int(temp);
+  DPRINT(" tempF="); DPRINTLN(curr_temp_f);
 
 }
 
@@ -100,9 +97,19 @@ uint32_t time_diff(const uint32_t a, const uint32_t b) {
   return retval;
 }
 
-void dub_digits(int16_t display_temp) {
+void dub_digits() {
+  int display_temp;
   byte digits[4];
-  boolean whoops = false;
+
+  // Last digit either is the unit, and incidentally which one are we
+  // displaying?
+  if (curr_metric_units) {
+    digits[3] = 0xC;
+    display_temp = curr_temp_c;
+  } else {
+    digits[3] = 0xF;
+    display_temp = curr_temp_f;
+  }
 
   // First three digits are temperature reading, so try to make it look right
   // aligned with a negative if needed
@@ -127,19 +134,10 @@ void dub_digits(int16_t display_temp) {
     digits[1] = (display_temp / 10) % 10;
     digits[2] = (display_temp) % 10;
   } else {
-    whoops = true;
     digits[0] = 0xE;
     digits[1] = 0xE;
     digits[2] = 0xE;
-  }
-
-  // Last digit either unit or error condition
-  if (whoops) {
     digits[3] = 0xE;
-  } else if (metric_units) {
-    digits[3] = 0xC;
-  } else {
-    digits[3] = 0xF;
   }
 
   // Copy display info over
@@ -213,7 +211,7 @@ void setup() {
     sensor_error = true;
     // TODO set display to fail mode
   } else {
-    curr_temp = readTemp();
+    readTemp();
   }
 
   // Setup button debouncing
@@ -235,20 +233,23 @@ void loop() {
   // Check if temperature needs updating
   uint32_t now = millis();
   if (time_diff(last_check, now) > THERM_POLL_MS) {
-    curr_temp = readTemp();
+    readTemp();
     last_check = now;
-    if (curr_temp != last_temp) { // Update display if needed
-      dub_digits(curr_temp);
-      last_temp = curr_temp;
-    }
   }
 
   // Check butt(on) for state change
   if (butt.update() && butt.rose()) {
-    metric_units = !metric_units;
+    last_metric_units = curr_metric_units;
+    curr_metric_units = !curr_metric_units;
+  }
+
+  // Update display if needed
+  if (curr_temp_c != last_temp_c || curr_metric_units != last_metric_units) {
+    dub_digits();
+    last_temp_c = curr_temp_c;
   }
 
   // Sleep for 1 s with most non-GPIO stuff off
-  sleep_now();
+  //sleep_now();
 
 }
