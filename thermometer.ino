@@ -33,6 +33,7 @@ boolean metric_units = false;
 SevSeg display;
 
 const size_t DISP_DIGITS = 4;
+const size_t DISP_BRIGHT = 224;
 const byte PINS_DIGITS[DISP_DIGITS] = {
   2, // digit 1 (leftmost)
   5, // digit 2
@@ -167,6 +168,7 @@ void setup() {
 
   // Setup display
   display.begin(COMMON_CATHODE, DISP_DIGITS, PINS_DIGITS, PINS_SEGMENTS);
+  display.setBrightness(DISP_BRIGHT);
 
   // Setup interrupt handler for display refresh; piggy-backing on TIMER0 that
   // Arudino has already setup for keeping track of time (for millis()).
@@ -207,17 +209,15 @@ void loop() {
   if (time_diff(last_check, now) > THERM_POLL_MS) {
     curr_temp = readTemp();
     last_check = now;
+    if (curr_temp != last_temp) { // Update display if needed
+      dub_digits(curr_temp);
+      last_temp = curr_temp;
+    }
   }
 
   // Check butt(on) for state change
   if (butt.update() && butt.rose()) {
     metric_units = !metric_units;
-  }
-
-  // Update display if needed
-  if (curr_temp != last_temp) {
-    dub_digits(curr_temp);
-    last_temp = curr_temp;
   }
 
   // Busy loop so the display isn't burnt out
