@@ -23,7 +23,7 @@
 // Temperature sensor variables/consts
 Adafruit_MCP9808 therm = Adafruit_MCP9808();
 uint32_t last_check = 0;
-uint32_t THERM_POLL_USEC = 1000000; // microseconds
+uint32_t THERM_POLL_MS = 1000; // milliseconds
 int curr_temp = 0;
 int last_temp = 0;
 boolean sensor_error = false;
@@ -33,9 +33,6 @@ boolean metric_units = false;
 SevSeg display;
 
 const size_t DISP_DIGITS = 4;
-const int DISP_ON_TIME_USEC = 1000;
-const int DISP_OFF_TIME_USEC = 10000;
-
 const byte PINS_DIGITS[DISP_DIGITS] = {
   2, // digit 1 (leftmost)
   5, // digit 2
@@ -53,13 +50,6 @@ const byte PINS_SEGMENTS[] = {
   13, // segment g
   A1, // decimal point <-- doesn't actually work with HS420561K-C30
 };
-
-//uint32_t usec_acc = 0;
-//uint16_t counter = 0;
-//uint32_t temp_acc = 0;
-//uint16_t temp_counter = 0;
-//const uint16_t LOOPS = 1000;
-//const uint16_t TEMP_LOOPS = 10;
 
 // Button variables/consts
 Bounce butt;
@@ -83,14 +73,14 @@ int readTemp() {
   temp = therm.readTempC();
   therm.shutdown_wake(1);
 
-  //DPRINT("tempC="); DPRINT(temp);
+  DPRINT("tempC="); DPRINT(temp);
 
   // Convert to Fahrenheit because I suck and can't read Celcius well (yet)
   if (!metric_units) {
     temp = temp * 9.0 / 5.0 + 32;
   }
 
-  //DPRINT(" tempF="); DPRINTLN(temp);
+  DPRINT(" tempF="); DPRINTLN(temp);
 
   return int(temp);
 
@@ -213,18 +203,10 @@ void setup() {
 void loop() {
   
   // Check if temperature needs updating
-  uint32_t now = micros();
-  if (time_diff(last_check, now) > THERM_POLL_USEC) {
+  uint32_t now = millis();
+  if (time_diff(last_check, now) > THERM_POLL_MS) {
     curr_temp = readTemp();
-    //temp_acc += (micros() - now);
     last_check = now;
-    //temp_counter++;
-    //if (temp_counter >= TEMP_LOOPS) {
-    //  DPRINT("temp ");
-    //  DPRINTLN(float(temp_acc) / float(temp_counter), 3);
-    //  temp_counter = 0;
-    //  temp_acc = 0;
-    //}
   }
 
   // Check butt(on) for state change
@@ -238,21 +220,7 @@ void loop() {
     last_temp = curr_temp;
   }
 
-  // Refresh display
-  //uint32_t start = micros();
-  //display.refreshDisplay(DISP_ON_TIME_USEC);
-
-  // Try to figure how much time the above is using on average
-  //usec_acc += (micros() - start);
-  //counter++;
-  //if (counter >= LOOPS) {
-  //  DPRINT("display ");
-  //  DPRINTLN(float(usec_acc) / float(counter), 3);
-  //  counter = 0;
-  //  usec_acc = 0;
-  //}
-
   // Busy loop so the display isn't burnt out
-  delayMicroseconds(DISP_OFF_TIME_USEC);
+  delay(10);
 
 }
