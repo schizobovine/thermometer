@@ -9,8 +9,8 @@
  */
 
 #include <avr/sleep.h>
-#include <avr/power.h>
 #include <avr/wdt.h>
+#include <avr/power.h>
 #include <avr/interrupt.h>
 
 #include <Arduino.h>
@@ -33,7 +33,7 @@ boolean metric_units = false;
 SevSeg display;
 
 const size_t DISP_DIGITS = 4;
-const size_t DISP_BRIGHT = 224;
+const size_t DISP_BRIGHT = 128;
 const byte PINS_DIGITS[DISP_DIGITS] = {
   2, // digit 1 (leftmost)
   5, // digit 2
@@ -70,9 +70,9 @@ int readTemp() {
 
   float temp;
 
-  therm.shutdown_wake(0);
+  //therm.shutdown_wake(0);
   temp = therm.readTempC();
-  therm.shutdown_wake(1);
+  //therm.shutdown_wake(1);
 
   DPRINT("tempC="); DPRINT(temp);
 
@@ -147,12 +147,40 @@ void dub_digits(int16_t display_temp) {
 
 }
 
+/*
+ * sleep_now()
+ *
+ * Sends CPU to sleep until an interrupt or the configured watchdog timer goes
+ * off.
+ */
+void sleep_now() {
+
+  wdt_enable(WDTO_1S);
+  WDTCSR |= (1 << WDIE);
+
+  set_sleep_mode(SLEEP_MODE_IDLE);
+  cli();
+  if (1) {
+    sleep_enable();
+    //sleep_bod_disable();
+    sei();
+    sleep_cpu();
+    sleep_disable();
+  }
+  sei();
+
+}
+
 ////////////////////////////////////////////////////////////////////////
 // INTERRUPT HANDLERS
 ////////////////////////////////////////////////////////////////////////
 
-ISR(TIMER0_COMPA_vect) {
+ISR (TIMER0_COMPA_vect) {
   display.illuminateNext();
+}
+
+ISR (WDT_vect) {
+  wdt_disable();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -220,7 +248,7 @@ void loop() {
     metric_units = !metric_units;
   }
 
-  // Busy loop so the display isn't burnt out
-  delay(10);
+  // Sleep for 1 s with most non-GPIO stuff off
+  sleep_now();
 
 }
